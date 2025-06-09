@@ -14,6 +14,9 @@ from langchain.chat_models import ChatOpenAI
 #from langchain.chains import SimpleSequentialChain # We can combine the chain and probably set the sequence for that .
 from langchain.chains import SequentialChain
 
+from langchain.memory import ConversationBufferMemory # We have to store the conversation in some memory .
+# For every template we should create memory .
+
 # Set up environment
 os.environ["OPENAI_API_KEY"] = openai_key
 
@@ -30,6 +33,12 @@ first_input_prompt = PromptTemplate(
 
 # with respect to every prompt template, we will have respective llm chain because we need to execute those things .
 
+# Memory 
+person_memory = ConversationBufferMemory(input_key='name', memory_key='chat_history')
+dob_memory = ConversationBufferMemory(input_key='person', memory_key='chat_history')
+descr_memory = ConversationBufferMemory(input_key='dob', memory_key='description_history')
+
+
 # Use Chat model instead of completion model
 llm = ChatOpenAI(
     openai_api_key=openai_key,
@@ -39,14 +48,14 @@ llm = ChatOpenAI(
 )
 
 # We need to create this llm chain .
-chain = LLMChain(llm = llm , prompt = first_input_prompt, verbose = True, output_key = 'person') # llmchain will specifically run this template . We use output_key here because the output of first prompt will be used as input in second prompt
+chain = LLMChain(llm = llm , prompt = first_input_prompt, verbose = True, output_key = 'person', memory = person_memory) # llmchain will specifically run this template . We use output_key here because the output of first prompt will be used as input in second prompt
 
 second_input_prompt = PromptTemplate(
     input_variables = ['person'],
     template = "when was the {person} born"
 )
 
-chain2 = LLMChain(llm = llm , prompt = second_input_prompt, verbose = True, output_key = 'dob')
+chain2 = LLMChain(llm = llm , prompt = second_input_prompt, verbose = True, output_key = 'dob', memory = dob_memory)
 
 #parent_chain = SimpleSequentialChain(chains=[chain,chain2],verbose=True)
 # The problem with SimpleSequentialChain is that as we are getting inputs, it will only show you the last input/output .
@@ -61,7 +70,7 @@ third_input_prompt = PromptTemplate(
 )
 
 
-chain3 = LLMChain(llm = llm , prompt = third_input_prompt, verbose = True, output_key = 'description')
+chain3 = LLMChain(llm = llm , prompt = third_input_prompt, verbose = True, output_key = 'description', memory = descr_memory)
 
 parent_chain = SequentialChain(chains=[chain,chain2,chain3],input_variables = ['name'], output_variables = ['person','dob','description'], verbose=True)
 
@@ -70,3 +79,9 @@ parent_chain = SequentialChain(chains=[chain,chain2,chain3],input_variables = ['
 if input_text:
     # st.write(parent_chain.run(input_text))
     st.write(parent_chain({'name' : input_text})) # Here we have to enter key value pairs .
+
+    with st.expander('Person Name'):
+        st.info(person_memory.buffer)
+
+    with st.expander('Major Events'):
+        st.info(descr_memory.buffer)
