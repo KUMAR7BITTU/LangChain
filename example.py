@@ -11,6 +11,8 @@ from langchain.chains import LLMChain # Whenever you want to execute this prompt
 
 import streamlit as st
 from langchain.chat_models import ChatOpenAI
+#from langchain.chains import SimpleSequentialChain # We can combine the chain and probably set the sequence for that .
+from langchain.chains import SequentialChain
 
 # Set up environment
 os.environ["OPENAI_API_KEY"] = openai_key
@@ -37,7 +39,34 @@ llm = ChatOpenAI(
 )
 
 # We need to create this llm chain .
-chain = LLMChain(llm = llm , prompt = first_input_prompt, verbose = True) # llmchain will specifically run this template .
+chain = LLMChain(llm = llm , prompt = first_input_prompt, verbose = True, output_key = 'person') # llmchain will specifically run this template . We use output_key here because the output of first prompt will be used as input in second prompt
+
+second_input_prompt = PromptTemplate(
+    input_variables = ['person'],
+    template = "when was the {person} born"
+)
+
+chain2 = LLMChain(llm = llm , prompt = second_input_prompt, verbose = True, output_key = 'dob')
+
+#parent_chain = SimpleSequentialChain(chains=[chain,chain2],verbose=True)
+# The problem with SimpleSequentialChain is that as we are getting inputs, it will only show you the last input/output .
+
+
+# To show the entire information we will use the SequentialChain.
+# parent_chain = SequentialChain(chains=[chain,chain2],input_variables = ['name'], output_variables = ['person','dob'], verbose=True)
+
+third_input_prompt = PromptTemplate(
+    input_variables = ['dob'],
+    template = "Mention 5 major events happened around {dob} in the world"
+)
+
+
+chain3 = LLMChain(llm = llm , prompt = third_input_prompt, verbose = True, output_key = 'description')
+
+parent_chain = SequentialChain(chains=[chain,chain2,chain3],input_variables = ['name'], output_variables = ['person','dob','description'], verbose=True)
+
+
 
 if input_text:
-    st.write(chain.run(input_text))
+    # st.write(parent_chain.run(input_text))
+    st.write(parent_chain({'name' : input_text})) # Here we have to enter key value pairs .
